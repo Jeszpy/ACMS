@@ -12,45 +12,39 @@ export class AuthService {
     async createUser(dto: AuthDto) {
         const password = await argon.hash(dto.password)
         try {
-            const user = await this.prisma.user.create({
+            await this.prisma.user.create({
                 data: {
                     login: dto.login,
                     password
                 },
-                // select - если надо выбрать несколько полей
-                // из возвращаемого объекта
             })
-            delete user.password
-            return user
+            return true
         } catch (error) {
             if (error instanceof PrismaClientKnownRequestError) {
                 if (error.code === 'P2002') {
-                    throw new ForbiddenException(
-                        'Ошибка! Такой логин уже существует.'
-                    )
+                    throw new ForbiddenException('Ошибка! Такой логин уже существует.')
                 }
             }
             throw error
         }
     }
 
+
     async login(dto: AuthDto) {
-        // @ts-ignore
-        // @ts-ignore
-        // @ts-ignore
         const user = await this.prisma.user.findUnique({
             where: {
                 login: dto.login,
             }
         })
-        if (!user)  {
-            throw new ForbiddenException(
-                'Ошибка! Такого пользователя не существует.'
-            )
+        if (!user) {
+            throw new ForbiddenException('Ошибка! Такого пользователя не существует.')
+        }
+        const pwMatches = await argon.verify(user.password, dto.password)
+        if (!pwMatches) {
+            throw new ForbiddenException('Ошибка! Неверный пароль.')
         }
 
-        return 'im signin'
+
+        return true
     }
-
-
 }
